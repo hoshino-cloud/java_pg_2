@@ -130,7 +130,7 @@ class TodoApplication {
     private static List<TodoItem> listTodos() throws SQLException {
         List<TodoItem> todos = new ArrayList<>();
         try (Connection c = DriverManager.getConnection(DB_URL);
-             PreparedStatement s = c.prepareStatement("SELECT id, title, due_date, done FROM todos ORDER BY id");
+             PreparedStatement s = c.prepareStatement("SELECT id, title, due_date, done FROM todos ORDER BY due_date ASC, id ASC");
              ResultSet r = s.executeQuery()) {
             while (r.next()) todos.add(new TodoItem(r.getInt("id"), r.getString("title"), r.getString("due_date"), r.getInt("done") != 0));
         }
@@ -138,11 +138,11 @@ class TodoApplication {
     }
 
     private static String renderTodoList() throws SQLException {
-        StringBuilder html = new StringBuilder("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>やることリスト</title><style>body{max-width:640px;margin:24px auto;padding:0 16px;font-size:16px}input,button{font-size:16px}</style></head><body><h1>やることリスト</h1><form method='post' action='/add'><input name='todo' placeholder='やること' required> <label>締め切り日 <input type='date' name='dueDate' required></label> <button>追加</button></form><ul>");
+        StringBuilder html = new StringBuilder("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>やることリスト</title><style>body{max-width:640px;margin:24px auto;padding:0 16px;font-size:16px}input,button{font-size:16px}.due-date{margin-left:2em}</style></head><body><h1>やることリスト</h1><form method='post' action='/add'><input name='todo' placeholder='やること' required><label class='due-date'>締め切り日 <input type='date' name='dueDate' required></label> <button>追加</button></form><ul>");
         for (TodoItem todo : listTodos()) {
             String title = escapeHtml(todo.title);
             if (todo.done) title = "<span style='color:blue;text-decoration:line-through'>" + title + "</span>";
-            html.append("<li>").append(title).append("　締め切り日: ").append(escapeHtml(todo.dueDate))
+            html.append("<li>").append(title).append("　　締め切り日: ").append(escapeHtml(todo.dueDate))
                     .append(" <a href='/done?id=").append(todo.id).append("'>完了</a> <a href='/delete?id=").append(todo.id).append("'>削除</a></li>");
         }
         return html.append("</ul></body></html>").toString();
