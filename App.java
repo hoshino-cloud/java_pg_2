@@ -66,7 +66,10 @@ public class App { // Appという名前のプログラム本体です
                 exchange.close(); // ★追加: 通信を閉じます
                 return; // ★追加: /deleteの処理をここで終えます
             } else if (path.equals("/")) { // 追加: パスが / の場合
-                String html = "<form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // 追加:
+                String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>やることリスト</title><style>body { max-width: 640px; margin: 24px auto; padding: 0 16px; font-size: 16px; } h1 { font-size: 24px; } input, button { font-size: 16px; }</style></head><body><h1>やることリスト</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // 追加:
+                if (todos.isEmpty()) {
+                    html += "<li>やることは、いま0件です</li>";
+                }
                                                                                                                      // Todo入力フォームとHTMLのリストを始めます
                 for (Todo todo : todos) { // ★変更: 一覧のTodoを1件ずつ取り出します
                     String title = todo.getTitle(); // ★変更: Todoの内容を表示用に入れます
@@ -77,7 +80,7 @@ public class App { // Appという名前のプログラム本体です
                             + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加:
                                                                                                 // Todoの番号を付けた「完了」「削除」のリンクを一覧の行へ加えます
                 } // 追加: Todoを1件ずつ追加する処理を終えます
-                html += "</ul>"; // 追加: HTMLのリストを閉じます
+                html += "</ul></body></html>"; // 追加: HTMLのリストを閉じます
                 message = html; // 追加: 組み立てたHTMLを返す内容にします
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8"); // 追加: /はHTML形式で返します
             } else {
