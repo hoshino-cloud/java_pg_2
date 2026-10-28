@@ -11,8 +11,8 @@ public class App { // Appという名前のプログラム本体です
 
     public static void main(String[] args) throws Exception { // プログラムを開始する場所です
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0); // 8080番で待ち受けるサーバーを用意します
-        todos.add(new Todo(nextId++, "牛乳を買う")); // ★変更: 番号1の「牛乳を買う」を一覧へ入れます
-        Todo egg = new Todo(nextId++, "卵を買う"); // ★変更: 番号2の「卵を買う」をeggに作ります
+        todos.add(new Todo(nextId++, "牛乳を買う", "2026-10-30")); // 番号1のTodoを一覧へ入れます
+        Todo egg = new Todo(nextId++, "卵を買う", "2026-10-31"); // 番号2のTodoをeggに作ります
         egg.setDone(true); // ★変更: eggを完了済みにします
         todos.add(egg); // ★変更: 完了済みにしたeggを一覧へ入れます
         server.createContext("/", exchange -> { // ブラウザから「/」に来たときの処理です
@@ -24,10 +24,10 @@ public class App { // Appという名前のプログラム本体です
             if (path.equals("/add") && method.equals("POST")) { // 追加: /addへのPOSTでTodoを追加します
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8); // 追加:
                                                                                                             // 送られた内容をUTF-8の文字列で受け取ります
-                String value = body.substring(5); // 追加: "todo="の5文字を除きます
-                String title = URLDecoder.decode(value, StandardCharsets.UTF_8); // ★変更: フォームで受け取ったやることをtitleへ入れます
-                if (!title.isEmpty()) { // ★変更: titleが空でないときだけ追加します
-                    todos.add(new Todo(nextId, title)); // ★変更: 次の番号とtitleでTodoを1件追加します
+                String title = getFormValue(body, "todo"); // フォームで受け取ったやることです
+                String dueDate = getFormValue(body, "dueDate"); // フォームで受け取った締め切り日です
+                if (!title.isEmpty() && !dueDate.isEmpty()) { // 両方が入力されたときだけ追加します
+                    todos.add(new Todo(nextId, title, dueDate)); // 番号、やること、締め切り日でTodoを追加します
                     nextId++; // ★変更: 次に使う番号を1つ増やします
                 } // 追加: 空の入力を追加しない処理を終えます
                 exchange.getResponseHeaders().set("Location", "/"); // 追加: 戻る先を/に指定します
@@ -66,7 +66,7 @@ public class App { // Appという名前のプログラム本体です
                 exchange.close(); // ★追加: 通信を閉じます
                 return; // ★追加: /deleteの処理をここで終えます
             } else if (path.equals("/")) { // 追加: パスが / の場合
-                String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>やることリスト</title><style>body { max-width: 640px; margin: 24px auto; padding: 0 16px; font-size: 16px; } h1 { font-size: 24px; } input, button { font-size: 16px; }</style></head><body><h1>やることリスト</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // 追加:
+                String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>やることリスト</title><style>body { max-width: 640px; margin: 24px auto; padding: 0 16px; font-size: 16px; } h1 { font-size: 24px; } input, button { font-size: 16px; }</style></head><body><h1>やることリスト</h1><form method='post' action='/add'><input name='todo' placeholder='やること' required><span style='display: inline-block; width: 2em;'></span><label>締め切り日 <input type='date' name='dueDate' required></label> <button>追加</button></form><ul>"; // 追加:
                 if (todos.isEmpty()) {
                     html += "<li>やることは、いま0件です</li>";
                 }
@@ -76,7 +76,7 @@ public class App { // Appという名前のプログラム本体です
                     if (todo.isDone()) { // ★変更: Todoが完了済みかを確かめます
                         title = "<span style='color: blue; text-decoration: line-through;'>" + title + "</span>"; // ★変更: 完了済みの内容を青い打ち消し線で表示します
                     } // ★変更: 完了済みかを確かめる処理を終えます
-                    html += "<li>" + title + " <a href='/done?id=" + todo.getId()
+                    html += "<li>" + title + "<span style='display: inline-block; width: 2em;'></span>締め切り日: " + todo.getDueDate() + " <a href='/done?id=" + todo.getId()
                             + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加:
                                                                                                 // Todoの番号を付けた「完了」「削除」のリンクを一覧の行へ加えます
                 } // 追加: Todoを1件ずつ追加する処理を終えます
@@ -94,16 +94,31 @@ public class App { // Appという名前のプログラム本体です
         server.start(); // サーバーを起動します
         System.out.println("サーバー起動: http://localhost:8080 （止めるときは Ctrl+C）"); // 起動した場所をターミナルに表示します
     } // mainの処理を終えます
+
+    static String getFormValue(String body, String key) {
+        for (String pair : body.split("&")) {
+            int equalsIndex = pair.indexOf('=');
+            if (equalsIndex >= 0) {
+                String name = URLDecoder.decode(pair.substring(0, equalsIndex), StandardCharsets.UTF_8);
+                if (name.equals(key)) {
+                    return URLDecoder.decode(pair.substring(equalsIndex + 1), StandardCharsets.UTF_8);
+                }
+            }
+        }
+        return "";
+    }
 } // Appの定義を終えます
 
 class Todo { // ★変更: Todoを表すクラスを作ります
     private final int id; // ★変更: Todoの番号を入れます
     private final String title; // ★変更: やることの内容を入れます
+    private final String dueDate; // 締め切り日を入れます
     private boolean done; // ★変更: 完了済みかどうかを入れます
 
-    Todo(int id, String title) { // ★変更: 番号とやることを受け取ってTodoを作ります
+    Todo(int id, String title, String dueDate) { // 番号、やること、締め切り日を受け取ってTodoを作ります
         this.id = id; // ★変更: 受け取った番号をidに入れます
         this.title = title; // ★変更: 受け取ったやることをtitleに入れます
+        this.dueDate = dueDate; // 受け取った締め切り日をdueDateに入れます
         this.done = false; // ★変更: 新しいTodoは未完了にします
     } // ★変更: Todoを作る処理を終えます
 
@@ -114,6 +129,10 @@ class Todo { // ★変更: Todoを表すクラスを作ります
     String getTitle() { // ★変更: やることを取り出すメソッドです
         return title; // ★変更: titleの値を返します
     } // ★変更: やることを取り出す処理を終えます
+
+    String getDueDate() {
+        return dueDate;
+    }
 
     boolean isDone() { // ★変更: 完了済みかを取り出すメソッドです
         return done; // ★変更: doneの値を返します
